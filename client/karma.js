@@ -3,50 +3,6 @@ var constant = require('./constants');
 var util = require('./util');
 
 
-var Emitter = function(socket) {
-  var currentSequence = 0;
-  var events = [];
-  var state = 1; // 0 = wait, 1 = ready
-  var completeEvent;
-  
-  socket.on('PACKET_ACK', function(data) {
-    var idx = data;
-    state = 1;
-    currentSequence++;
-  });
-
-  var _original = socket.emit;
-
-  socket.emit = function(eventName, data) {
-    console.log('hlollerr');
-    if (eventName === 'result') {
-      events.push(data);
-      return true;
-    } else if (eventName === 'complete') {
-      completeEvent = data;
-    } else {
-      return _original.apply(socket, [eventName, data]);
-    }
-  };
-
-  function clearEvents() {
-    if (state && events[currentSequence]) {
-      _original.apply(socket, ['result', events[currentSequence]]);
-      state = 0;
-      return;
-    }
-
-    if (state && completeEvent) {
-      _original.apply(socket, ['complete', completeEvent]);
-      state = 0;
-    }
-  }
-
-  setInterval(clearEvents, 1000);
-
-  return socket;
-};
-
 /* jshint unused: false */
 var Karma = function(socket, iframe, opener, navigator, location) {
   var hasError = false;
@@ -267,9 +223,6 @@ var Karma = function(socket, iframe, opener, navigator, location) {
   // report browser name, id
   socket.on('connect', function() {
     currentTransport = socket.socket.transport.name;
-
-    // Override methods
-    socket = Emitter(socket);
 
     // TODO(vojta): make resultsBufferLimit configurable
     if (currentTransport === 'websocket' || currentTransport === 'flashsocket') {
